@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wuliao00 — 把想法编译成应用</title>
+<meta name="description" content="wuliao00 的开源作品集：PriceLens 全网比价助手、StudyKit 学习工具、WeatherOutfit 天气穿搭、MC-smarthorde 模组。永久免费 · 本地优先 · MIT License。">
+<meta property="og:title" content="wuliao00 — 把想法编译成应用">
+<meta property="og:description" content="开源工具集：比价 · 学习 · 穿搭 · 模组。Kotlin / Java / Electron，全部永久免费。">
+<!-- 字体：国内镜像 + 异步加载（失败时优雅降级到系统字体，不阻塞渲染） -->
+<link rel="preconnect" href="https://fonts.loli.net">
+<link rel="preconnect" href="https://gstatic.loli.net" crossorigin>
+<link href="https://fonts.loli.net/css2?family=Syne:wght@600;700;800&family=JetBrains+Mono:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.loli.net/css2?family=Syne:wght@600;700;800&family=JetBrains+Mono:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet"></noscript>
+<style>
+:root{
+  --bg:#0A0E12; --bg2:#0E141B; --line:#1B2733;
+  --mint:#00E5A0; --amber:#FFB020; --text:#E8EEF2; --dim:#64748B;
+  --mono:'JetBrains Mono',monospace; --disp:'Syne',sans-serif;
+  --cn:'Noto Sans SC',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--cn);overflow-x:hidden;line-height:1.6}
+::selection{background:var(--mint);color:#04120C}
+a{color:inherit;text-decoration:none}
+
+/* ── 背景层：网格 + 扫描线 + 光斑 ─────────── */
+.bg-grid{position:fixed;inset:0;z-index:-3;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:56px 56px;mask-image:radial-gradient(ellipse 90% 70% at 50% 0%,#000 30%,transparent 100%)}
+.bg-scan{position:fixed;inset:0;z-index:-2;pointer-events:none;opacity:.5;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,229,160,.012) 3px 4px)}
+.glow{position:fixed;width:640px;height:640px;border-radius:50%;z-index:-2;pointer-events:none;
+  filter:blur(120px);opacity:.16;background:radial-gradient(circle,var(--mint),transparent 65%);
+  transform:translate(-50%,-50%);transition:opacity .4s;will-change:left,top}
+.glow.amber{background:radial-gradient(circle,var(--amber),transparent 65%);opacity:.08}
+
+/* ── 顶部导航 ─────────── */
+nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;gap:32px;
+  padding:18px 6vw;backdrop-filter:blur(14px);background:rgba(10,14,18,.72);border-bottom:1px solid var(--line)}
+.logo{font-family:var(--disp);font-weight:800;font-size:19px;letter-spacing:.04em}
+.logo b{color:var(--mint)}
+nav .links{display:flex;gap:26px;margin-left:auto;font-size:14px;color:var(--dim)}
+nav .links a{position:relative;transition:color .25s}
+nav .links a::after{content:'';position:absolute;left:0;bottom:-5px;width:0;height:2px;background:var(--mint);transition:width .3s}
+nav .links a:hover{color:var(--text)}
+nav .links a:hover::after{width:100%}
+.btn-gh{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border:1px solid var(--mint);
+  border-radius:8px;color:var(--mint);font-family:var(--mono);font-size:13px;transition:.3s}
+.btn-gh:hover{background:var(--mint);color:#04120C;box-shadow:0 0 24px rgba(0,229,160,.35)}
+
+/* ── Hero ─────────── */
+.hero{min-height:100vh;display:grid;grid-template-columns:7fr 5fr;align-items:center;
+  gap:4vw;padding:120px 6vw 60px;position:relative}
+.hero .tag{font-family:var(--mono);font-size:13px;color:var(--mint);letter-spacing:.28em;
+  display:flex;align-items:center;gap:12px;margin-bottom:26px}
+.hero .tag::before{content:'';width:36px;height:1px;background:var(--mint)}
+.hero h1{font-family:var(--disp);font-weight:800;font-size:clamp(44px,7.2vw,104px);
+  line-height:1.02;letter-spacing:-.01em}
+.hero h1 .row2{display:block;color:transparent;-webkit-text-stroke:1.5px var(--dim)}
+.hero h1 .cursor{display:inline-block;width:.55em;height:.9em;background:var(--mint);
+  vertical-align:-.08em;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.hero .sub{margin-top:30px;max-width:520px;color:var(--dim);font-size:16.5px}
+.hero .sub b{color:var(--text);font-weight:500}
+.hero .cta{display:flex;gap:16px;margin-top:40px;flex-wrap:wrap}
+.btn-solid{padding:14px 30px;background:var(--mint);color:#04120C;font-weight:700;font-size:15px;
+  border-radius:10px;transition:.3s;display:inline-flex;align-items:center;gap:10px}
+.btn-solid:hover{transform:translateY(-3px);box-shadow:0 12px 36px rgba(0,229,160,.35)}
+.btn-ghost{padding:14px 30px;border:1px solid var(--line);border-radius:10px;font-size:15px;
+  color:var(--dim);transition:.3s;display:inline-flex;align-items:center;gap:10px}
+.btn-ghost:hover{border-color:var(--amber);color:var(--amber);transform:translateY(-3px)}
+
+/* 终端窗口 */
+.term{font-family:var(--mono);font-size:13.5px;background:var(--bg2);border:1px solid var(--line);
+  border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.55);
+  transform:rotate(1.5deg);transition:transform .5s}
+.term:hover{transform:rotate(0) translateY(-6px)}
+.term .bar{display:flex;gap:8px;padding:13px 16px;border-bottom:1px solid var(--line);background:#0B1016}
+.term .bar i{width:11px;height:11px;border-radius:50%}
+.term .bar i:nth-child(1){background:#FF5F57}.term .bar i:nth-child(2){background:#FFBD2E}.term .bar i:nth-child(3){background:#28C840}
+.term .bar span{margin-left:auto;color:var(--dim);font-size:11px}
+.term .body{padding:20px 22px;line-height:2.05;min-height:290px}
+.term .ln{opacity:0;animation:lnIn .5s forwards}
+.term .p{color:var(--mint)} .term .c{color:var(--dim)} .term .w{color:var(--amber)}
+@keyframes lnIn{to{opacity:1}}
+
+/* 数据条 */
+.stats{display:flex;gap:0;border:1px solid var(--line);border-radius:14px;margin:0 6vw 90px;
+  overflow:hidden;background:rgba(14,20,27,.6);backdrop-filter:blur(8px)}
+.stat{flex:1;padding:30px 10px;text-align:center;border-right:1px solid var(--line)}
+.stat:last-child{border-right:none}
+.stat .n{font-family:var(--mono);font-weight:700;font-size:clamp(26px,3.4vw,42px);color:var(--mint)}
+.stat .l{font-size:13px;color:var(--dim);margin-top:6px;letter-spacing:.1em}
+
+/* ── 通用 Section ─────────── */
+section{padding:90px 6vw}
+.sec-head{display:flex;align-items:baseline;gap:22px;margin-bottom:60px}
+.sec-head .idx{font-family:var(--mono);color:var(--amber);font-size:14px}
+.sec-head h2{font-family:var(--disp);font-weight:700;font-size:clamp(30px,4vw,52px)}
+.sec-head .rule{flex:1;height:1px;background:var(--line);align-self:center}
+.reveal{opacity:0;transform:translateY(46px);transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* ── 项目区：非对称 ─────────── */
+.feat{display:grid;grid-template-columns:8fr 4fr;gap:26px}
+.card{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:18px;
+  padding:38px;overflow:hidden;transition:border-color .35s,transform .35s;
+  transform-style:preserve-3d;will-change:transform}
+.card:hover{border-color:rgba(0,229,160,.45)}
+.card .corner{position:absolute;top:0;right:0;width:120px;height:120px;pointer-events:none;
+  background:linear-gradient(225deg,rgba(0,229,160,.09),transparent 60%)}
+.card .no{position:absolute;top:26px;right:30px;font-family:var(--mono);font-size:12px;color:var(--dim)}
+.card .lang{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:12px;
+  color:var(--dim);border:1px solid var(--line);border-radius:99px;padding:4px 13px;margin-bottom:20px}
+.card .lang i{width:8px;height:8px;border-radius:50%}
+.card h3{font-family:var(--disp);font-weight:700;font-size:clamp(26px,3vw,40px);margin-bottom:12px}
+.card .desc{color:var(--dim);font-size:15px;max-width:560px}
+.card .chips{display:flex;flex-wrap:wrap;gap:9px;margin-top:22px}
+.card .chip{font-size:12.5px;font-family:var(--mono);padding:5px 12px;border-radius:7px;
+  background:rgba(0,229,160,.06);color:var(--mint);border:1px solid rgba(0,229,160,.18)}
+.card .foot{display:flex;align-items:center;gap:14px;margin-top:30px;flex-wrap:wrap}
+.card .go{display:inline-flex;align-items:center;gap:9px;font-size:14px;font-weight:500;color:var(--mint);transition:gap .3s}
+.card .go:hover{gap:15px}
+.card .cp{margin-left:auto;display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);
+  font-size:12px;color:var(--dim);background:none;border:1px solid var(--line);border-radius:8px;
+  padding:8px 14px;cursor:pointer;transition:.3s}
+.card .cp:hover{color:var(--amber);border-color:var(--amber)}
+
+/* 侧栏小卡 */
+.side{display:flex;flex-direction:column;gap:26px}
+.side .card{padding:30px}
+.side h3{font-size:22px}
+.side .desc{font-size:13.5px}
+
+/* 装饰坐标 */
+.coord{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.15em;
+  display:flex;justify-content:space-between;padding:0 6vw;margin-bottom:-30px}
+
+/* ── 技术栈 ─────────── */
+.stack{display:flex;flex-wrap:wrap;gap:14px}
+.stack .sx{font-family:var(--mono);font-size:14px;padding:13px 24px;border:1px solid var(--line);
+  border-radius:12px;color:var(--dim);transition:.3s;cursor:default}
+.stack .sx:hover{color:var(--mint);border-color:var(--mint);transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,229,160,.14)}
+.stack .sx b{color:var(--text);font-weight:700}
+
+/* ── Snake + Footer ─────────── */
+.snake{text-align:center}
+.snake img{max-width:92%;border:1px solid var(--line);border-radius:16px;padding:18px;background:var(--bg2)}
+.snake p{font-family:var(--mono);font-size:12.5px;color:var(--dim);margin-top:16px}
+footer{border-top:1px solid var(--line);padding:34px 6vw;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+footer .fl{font-family:var(--mono);font-size:12.5px;color:var(--dim)}
+footer a{color:var(--mint);font-family:var(--mono);font-size:12.5px;transition:opacity .25s}
+footer a:hover{opacity:.7}
+
+/* Toast */
+.toast{position:fixed;bottom:34px;left:50%;transform:translate(-50%,80px);z-index:99;
+  background:var(--mint);color:#04120C;font-weight:700;font-size:14px;padding:13px 26px;
+  border-radius:10px;opacity:0;transition:.4s cubic-bezier(.16,1,.3,1);pointer-events:none}
+.toast.show{transform:translate(-50%,0);opacity:1}
+
+/* 响应式 */
+@media(max-width:920px){
+  .hero{grid-template-columns:1fr;padding-top:110px}
+  .term{transform:none;max-width:560px}
+  .feat{grid-template-columns:1fr}
+  .stats{flex-wrap:wrap}
+  .stat{flex:1 1 45%;border-bottom:1px solid var(--line)}
+  nav .links{display:none}
+}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div><div class="bg-scan"></div>
+<div class="glow" id="glow"></div><div class="glow amber" id="glow2"></div>
+<div class="toast" id="toast">已复制到剪贴板</div>
+
+<nav>
+  <div class="logo">wuliao<b>00</b></div>
+  <div class="links">
+    <a href="#projects">项目</a><a href="#stack">技术栈</a><a href="#snake">贡献图</a>
+  </div>
+  <a class="btn-gh" href="https://github.com/wuliao00" target="_blank" rel="noopener">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55 0-.27-.01-1.17-.02-2.12-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.75 2.69 1.25 3.35.95.1-.74.4-1.25.72-1.53-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.35.77 1.05.77 2.12 0 1.53-.01 2.76-.01 3.14 0 .3.2.67.8.55A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>
+    GitHub
+  </a>
+</nav>
+
+<header class="hero">
+  <div>
+    <div class="tag">OPEN SOURCE · KOTLIN · JAVA · ELECTRON</div>
+    <h1>把想法<span class="row2">编译成</span>应用<span class="cursor"></span></h1>
+    <p class="sub">独立开发者，构建 <b>永久免费 · 本地优先</b> 的实用工具。
+      比价、学习、穿搭、模组 —— 全部开源，<b>MIT License</b>，无广告无追踪。</p>
+    <div class="cta">
+      <a class="btn-solid" href="#projects">探索项目
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+      </a>
+      <a class="btn-ghost" href="https://github.com/wuliao00" target="_blank" rel="noopener">访问 GitHub</a>
+    </div>
+  </div>
+  <div class="term" id="term">
+    <div class="bar"><i></i><i></i><i></i><span>wuliao00@dev ~ zsh</span></div>
+    <div class="body" id="termBody"></div>
+  </div>
+</header>
+
+<div class="stats reveal">
+  <div class="stat"><div class="n" data-n="4">0</div><div class="l">开源仓库</div></div>
+  <div class="stat"><div class="n" data-n="3">0</div><div class="l">主力语言</div></div>
+  <div class="stat"><div class="n" data-n="10" data-suf="+">0</div><div class="l">支持平台（比价）</div></div>
+  <div class="stat"><div class="n">MIT</div><div class="l">开源协议</div></div>
+</div>
+
+<section id="projects">
+  <div class="sec-head reveal"><span class="idx">01</span><h2>精选项目</h2><span class="rule"></span></div>
+  <div class="coord reveal"><span>/* FEATURED_REPOS */</span><span>36.06°N 103.83°E</span></div>
+
+  <div class="feat">
+    <article class="card reveal" data-tilt>
+      <div class="corner"></div><span class="no">REPO_01</span>
+      <span class="lang"><i style="background:#A97BFF"></i>Kotlin · Electron</span>
+      <h3>PriceLens</h3>
+      <p class="desc">极简全网比价助手 —— <b style="color:var(--text)">Android 无障碍增强版 + Windows Electron 便携版</b>。
+        商品比价、降价盯价、历史价格、找券与社区验证，数据全部留在本地。</p>
+      <div class="chips">
+        <span class="chip">京东</span><span class="chip">淘宝</span><span class="chip">拼多多</span>
+        <span class="chip">B站</span><span class="chip">什么值得买</span><span class="chip">慢慢买</span>
+        <span class="chip">咕咚</span><span class="chip">Keep</span>
+      </div>
+      <div class="foot">
+        <a class="go" href="https://github.com/wuliao00/PriceLens" target="_blank" rel="noopener">查看仓库
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+        <button class="cp" data-copy="git clone https://github.com/wuliao00/PriceLens.git">copy · git clone</button>
+      </div>
+    </article>
+
+    <div class="side">
+      <article class="card reveal" data-tilt>
+        <div class="corner"></div><span class="no">REPO_02</span>
+        <span class="lang"><i style="background:#A97BFF"></i>Kotlin</span>
+        <h3>StudyKit</h3>
+        <p class="desc">学生学习工具箱：单词卡片、题库练习、错题本、习惯打卡与读书笔记，本地数据库无云端依赖。</p>
+        <div class="foot">
+          <a class="go" href="https://github.com/wuliao00/StudyKit" target="_blank" rel="noopener">查看仓库
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+        </div>
+      </article>
+      <article class="card reveal" data-tilt>
+        <div class="corner"></div><span class="no">REPO_03</span>
+        <span class="lang"><i style="background:#A97BFF"></i>Kotlin</span>
+        <h3>WeatherOutfit</h3>
+        <p class="desc">简衣 —— 实时天气穿搭推荐。Jetpack Compose + Material 3，接入中国气象局数据，MVVM 架构。</p>
+        <div class="foot">
+          <a class="go" href="https://github.com/wuliao00/WeatherOutfit" target="_blank" rel="noopener">查看仓库
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <div class="feat" style="grid-template-columns:5fr 7fr;margin-top:26px">
+    <article class="card reveal" data-tilt>
+      <div class="corner" style="background:linear-gradient(225deg,rgba(255,176,32,.09),transparent 60%)"></div>
+      <span class="no">REPO_04</span>
+      <span class="lang"><i style="background:#E76F00"></i>Java</span>
+      <h3>MC-smarthorde</h3>
+      <p class="desc">Minecraft NeoForge 模组 —— 群智牧圈：让村民与生物协作的自动化玩法扩展。</p>
+      <div class="foot">
+        <a class="go" href="https://github.com/wuliao00/MC-smarthorde" target="_blank" rel="noopener">查看仓库
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+      </div>
+    </article>
+    <article class="card reveal" style="display:flex;flex-direction:column;justify-content:center;background:linear-gradient(135deg,var(--bg2),#0C1420)">
+      <div class="corner"></div>
+      <h3 style="font-size:26px">为什么选择这些工具？</h3>
+      <p class="desc" style="margin-top:14px">
+        <span style="color:var(--mint)">—</span> 永久免费，无广告、无订阅、无追踪<br>
+        <span style="color:var(--mint)">—</span> 本地优先，数据不离开你的设备<br>
+        <span style="color:var(--mint)">—</span> 全部开源，接受审计与 PR<br>
+        <span style="color:var(--mint)">—</span> CI/CD 全绿交付，构建可复现
+      </p>
+    </article>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="sec-head reveal"><span class="idx">02</span><h2>技术栈</h2><span class="rule"></span></div>
+  <div class="stack reveal">
+    <span class="sx"><b>Kotlin</b> · Jetpack Compose</span>
+    <span class="sx"><b>Material 3</b> · MVVM</span>
+    <span class="sx"><b>Room</b> · Hilt · WorkManager</span>
+    <span class="sx"><b>Electron</b> · Node.js</span>
+    <span class="sx"><b>Java</b> · NeoForge</span>
+    <span class="sx"><b>GitHub Actions</b> · CI/CD</span>
+    <span class="sx"><b>Shizuku</b> · 无障碍服务</span>
+  </div>
+</section>
+
+<section id="snake" class="snake">
+  <div class="sec-head reveal" style="text-align:left"><span class="idx">03</span><h2>贡献足迹</h2><span class="rule"></span></div>
+  <img class="reveal" src="https://raw.githubusercontent.com/wuliao00/wuliao00/output/github-contribution-grid-snake.svg" alt="GitHub 贡献贪吃蛇动图" loading="lazy">
+  <p class="reveal">// 每一次 commit，都在喂养这条蛇</p>
+</section>
+
+<footer>
+  <span class="fl">© 2026 wuliao00 · Built with vanilla HTML/CSS/JS · 0 dependencies</span>
+  <a href="https://github.com/wuliao00" target="_blank" rel="noopener" style="margin-left:auto">github.com/wuliao00</a>
+</footer>
+
+<script>
+/* ── 终端打字机 ─────────── */
+const LINES=[
+  ['p','$ ','whoami'],
+  ['c','# 独立开发者 · 开源爱好者 · 工具控'],
+  ['w','$ ','ls ~/repos'],
+  ['c','PriceLens/  StudyKit/  WeatherOutfit/  MC-smarthorde/'],
+  ['p','$ ','cat mission.txt'],
+  ['c','永久免费 · 本地优先 · MIT License'],
+  ['w','$ ','status --all'],
+  ['c','CI: passing ✓  issues: 0  motivation: MAX']
+];
+(function(){const body=document.getElementById('termBody');let li=0;
+  function next(){if(li>=LINES.length)return;
+    const[cls,pre,txt]=LINES[li++];const div=document.createElement('div');
+    div.className='ln';div.style.animationDelay='0s';body.appendChild(div);
+    const preSpan=document.createElement('span');preSpan.className=cls;preSpan.textContent=pre;div.appendChild(preSpan);
+    let ci=0;const t=document.createElement('span');
+    (function type(){if(ci<txt.length){t.textContent+=txt[ci++];setTimeout(type,26);}
+      else{setTimeout(next,340);}})();
+    div.appendChild(t);}
+  setTimeout(next,700);})();
+
+/* ── 数字滚动 ─────────── */
+const nums=document.querySelectorAll('.stat .n[data-n]');
+const nObs=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;
+  const el=e.target,target=+el.dataset.n,suf=el.dataset.suf||'',t0=performance.now();
+  (function tick(t){const p=Math.min((t-t0)/1400,1);
+    el.textContent=Math.round(target*(1-Math.pow(1-p,3)))+suf;
+    if(p<1)requestAnimationFrame(tick);})(t0);
+  nObs.unobserve(el);}),{threshold:.5});
+nums.forEach(n=>nObs.observe(n));
+
+/* ── 滚动渐入 ─────────── */
+const rObs=new IntersectionObserver(es=>es.forEach((e,i)=>{if(e.isIntersecting){
+  setTimeout(()=>e.target.classList.add('in'),(e.target.dataset.d||0)*1);rObs.unobserve(e.target);}}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach((el,i)=>{el.dataset.d=(i%4)*90;rObs.observe(el);});
+
+/* ── 卡片 3D tilt ─────────── */
+document.querySelectorAll('[data-tilt]').forEach(c=>{
+  c.addEventListener('mousemove',e=>{const r=c.getBoundingClientRect();
+    const x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;
+    c.style.transform=`perspective(900px) rotateY(${x*7}deg) rotateX(${-y*7}deg) translateY(-4px)`;});
+  c.addEventListener('mouseleave',()=>{c.style.transform='';});});
+
+/* ── 光标光斑 ─────────── */
+const g1=document.getElementById('glow'),g2=document.getElementById('glow2');
+let mx=innerWidth/2,my=innerHeight/3,x1=mx,y1=my,x2=mx,y2=my;
+addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
+(function loop(){x1+=(mx-x1)*.06;y1+=(my-y1)*.06;
+  g1.style.left=x1+'px';g1.style.top=y1+'px';
+  x2+=(x1+240-x2)*.035;y2+=(y1+180-y2)*.035;
+  g2.style.left=x2+'px';g2.style.top=y2+'px';
+  requestAnimationFrame(loop);})();
+
+/* ── 复制到剪贴板 ─────────── */
+const toast=document.getElementById('toast');
+document.querySelectorAll('.cp').forEach(b=>b.addEventListener('click',async()=>{
+  try{await navigator.clipboard.writeText(b.dataset.copy);}
+  catch{const ta=document.createElement('textarea');ta.value=b.dataset.copy;
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();}
+  toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),1800);}));
+</script>
+</body>
+</html>
